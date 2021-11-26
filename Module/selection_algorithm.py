@@ -53,18 +53,13 @@ def filter_pairs_adapt(pairs, cls):
 
 
 
-def N_best(df, ndf_, k, mes = ms.MVE):
-
-    t0 = time.process_time()
+def NB(df, ndf_, k, nbcpus, mes = ms.MVE):
 
     ndf = copy.deepcopy(ndf_)
     ndf = filter_matrix_greedy(ndf)
-    cost = cmu.cost_classifiers(ndf)
-    pairs = sorted(cost.items(), key=lambda x: x[1])[:k]
-    pairs = [x[0] for x in pairs]
+    pairs = ndf.columns.tolist()[1:k+1]
     set = [ndf[p].values.tolist() for p in pairs]
     phen = ndf['phenotype']
-
 
     return pairs, ms.MVE(set), ndf
 
@@ -86,24 +81,20 @@ def test_candidate_FS(cand_pairs, set_pairs, ndf, mes, i):
 
 
 def FS(df, ndf_, k, nbcpus, mes = ms.MVE, start = 0):
-    nbcpus = 256
     try:
         nbcpus = int (os.getenv('OMP_NUM_THREADS') )
     except:
         pass
     pool = mp.Pool(nbcpus)
-    print('nb cpus count:', mp.cpu_count())
-    print('nb cpus put:', nbcpus)
 
     ndf = copy.deepcopy(ndf_)
-    cost = cmu.cost_classifiers(ndf)
-    pairs_ = sorted(cost.items(), key=lambda x: x[1])
-    pairs_ = [x[0] for x in pairs_]
+    pairs_ = ndf.columns.tolist()[1:]
     pairs = [pairs_[start]]
     set_pairs = [ndf[pairs[0]].values.tolist()]
     phen = ndf['phenotype']
     ind = 1
     tot_ind = ind
+
     while len(pairs) < k:
 
         cand_pairs = pairs_[ind:ind+20]
@@ -147,19 +138,14 @@ def test_candidate_BS(cand_pairs, set_pairs, ndf, mes, i):
 
 
 def BS(df, ndf_, k, nbcpus, mes = ms.F2, end = 50):
-    nbcpus = 256
     try:
         nbcpus = int (os.getenv('OMP_NUM_THREADS') )
     except:
         pass
     pool = mp.Pool(nbcpus)
-    print('nb cpus count:', mp.cpu_count())
-    print('nb cpus put:', nbcpus)
 
     ndf = copy.deepcopy(ndf_)
-    cost = cmu.cost_classifiers(ndf)
-    pairs_ = sorted(cost.items(), key=lambda x: x[1])
-    pairs_ = [x[0] for x in pairs_]
+    pairs_ = ndf.columns.tolist()[1:]
     pairs = [pairs_[i] for i in range(min(end, len(pairs_)))]
     set_pairs = [ndf[p].values.tolist() for p in pairs]
     phen = ndf['phenotype']

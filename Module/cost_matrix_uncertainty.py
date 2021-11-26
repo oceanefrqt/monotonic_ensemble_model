@@ -14,19 +14,20 @@ import multiprocessing as mp
 
 ### Useful functions for parallele
 
-def vals_mp(col, df_2, out, prediction):
+def vals_mp(col, df_2, out, funct):
     vals = list()
-    for k in range(len(col)-1):
+    for k in range(len(col)):
+        vals.append((col[k], col[k], df_2, out, funct))
         for l in range(k+1, len(col)):
-            vals.append((col[k], col[l], df_2, out, prediction))
-            vals.append((col[l], col[k], df_2, out, prediction))
+            vals.append((col[k], col[l], df_2, out, funct))
+            vals.append((col[l], col[k], df_2, out, funct))
     return vals
 
 
 #### ERROR MATRIX ######
 
 
-def single_error(p1, p2, df_2, out, prediction):
+def single_error(p1, p2, df_2, out, funct):
 
     diag = df_2['diagnostic'].values.tolist()
 
@@ -35,45 +36,46 @@ def single_error(p1, p2, df_2, out, prediction):
     data = [((tr1[n], tr2[n] ), 1, diag[n]) for n in range(len(diag))]
     out_p = (out[p1], out[p2])
     X, models, r_p, b_p = mru.compute_recursion(data)
-    preds = list()
+    errors = list() #Store the error prediction in following format ('A/B/k', err)
+    #with A and B two transcripts, k the case of the function (decreasing or increasing) and err the error
 
     for key in models.keys():
         key = int(key)
-        rev, up = tools.equiv_key_case(key)
+        rev = tools.equiv_key_case(key)
         bpr, bpb = models[key]
-        pred = prediction(out_p, bpr, bpb, rev, up)
+        pred = funct(out_p, bpr, bpb, rev)
 
         if pred == -1:
-            preds.append(("".join([p1, '/', p2, '/', str(key)]), -1))
+            errors.append(("".join([p1, '/', p2, '/', str(key)]), -1)) #if uncertain, we keep it like this
         else:
-            preds.append(("".join([p1, '/', p2, '/', str(key)]), abs(1-int(pred == out['diagnostic']))))
+            errors.append(("".join([p1, '/', p2, '/', str(key)]), abs(1-int(pred == out['diagnostic'])))) #int(True) = 1 so if the pred is equal to real label, error is equal to 0
 
-    return preds
+    return errors
 
 
-def error_matrix(df_, nbcpus, prediction):
+def error_matrix(df_, nbcpus, funct):
     try:
         nbcpus = int (os.getenv('OMP_NUM_THREADS') )
     except:
         pass
     pool = mp.Pool(nbcpus)
-    print('nb cpus count:', mp.cpu_count())
-    print('nb cpus put:', nbcpus)
-    #m = mp.Manager()
-    #lock = m.Lock()
+
 
     df = copy.deepcopy(df_)
 
     index = list()
     col = list(df.columns)
-    if 'diagnostic' in col:
-        col.remove('diagnostic')
-    else:
-        print('diagnostic not in column, check the file')
+
+    assert 'diagnostic' in col, 'diagnostic not in column, check the file'
+
+    col.remove('diagnostic')
+
     pairs = list()
-    for k in range(len(col)-1):
-        for l in range(k+1, len(col)):
-            for nb in range(1,5):
+    for nb in range(1,3):
+        for k in range(len(col)):
+            pairs.append("".join([col[k], '/', col[k], '/', str(nb)]))
+            for l in range(k+1, len(col)): #We test each pair of transcript in all possible ways: A/A, A/B, B/A
+             #For each pair, we test both case (decreasing or increasing function)
                 pairs.append("".join([col[k], '/', col[l], '/', str(nb)]))
                 pairs.append("".join([col[l], '/', col[k], '/', str(nb)]))
 
@@ -88,7 +90,7 @@ def error_matrix(df_, nbcpus, prediction):
         df_2 = df.drop([j])
         df_2.reset_index(drop=True, inplace=True)
 
-        vals = vals_mp(col, df_2, out, prediction)
+        vals = vals_mp(col, df_2, out, funct)
 
         res = pool.starmap(single_error, vals, max(1,len(vals)//nbcpus)) #res is an array (size = nb of pairs) that contains arrays (size=4) containing a
         #tuple with the case of model and the error prediction
@@ -134,7 +136,7 @@ def error(matrix, index, df):
             tot = len(matrix[k]) - matrix[k].count(-1)
             matrix[k].append(matrix[k].count(1)/tot)
         else:
-            matrix[k].append(None)
+            matrix[k].append(1)
 
     index.append('error')
 
@@ -144,7 +146,6 @@ def nb_misclassification(matrix, index, df):
     ## applied to an error matrix
     for k in matrix.keys():
         matrix[k].append(matrix[k].count(1))
-
     index.append('misclassififcation')
 
     return matrix, index
@@ -162,6 +163,7 @@ def nb_uncertainty(matrix, index, df):
 
 
 def matrix_csv(matx, idx, df, sort1 = None, sort2 = None):
+    #Création of the DataFrame
     diags = df['diagnostic'].values.tolist()
 
     mat = copy.deepcopy(matx)
@@ -190,7 +192,6 @@ def cost_classifiers(ndf):
     cols = list(ndf.columns)
     cols.remove('phenotype')
     errors = ndf.loc[['error'], :]
-    #print(errors.values.tolist())
     errors = errors.values.tolist()[0][1:]
     cost = {cols[i] : errors[i] for i in range(len(cols))}
     return cost

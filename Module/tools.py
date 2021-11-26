@@ -2,16 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
 
+
 def equiv_key_case(i):
-    equiv = {1 : (False, True), 2: (True, True), 3: (False, False), 4: (True, False)}
+    equiv = {1 : False, 2: True}
     return equiv[i]
 
 
 
 
-def equiv_case_key(rev, up):
-    equiv = {(False, True):1, (True, True):2, (False, False): 3, (True, False):4 }
-    return equiv[(rev, up)]
+def equiv_case_key(rev):
+    equiv = {False:1, True:2}
+    return equiv[rev]
 
 
 #PREDICTION FROM A METAMODEL
@@ -20,25 +21,25 @@ def pred_metamodel(preds):
     a = preds.count(1)
     b = preds.count(0)
     c = preds.count(-1)
+    assert a + b +c == len(preds), "Problem in the error predictions for a patient"
+    if c == len(preds): #In the case where all the predictions are equal to -1, we predict the patient as 1
+        return 1
+    if a < b:# If less 1 than 0, predict as 0
+        return 0
+    else: #If more or same nb of 1 as nb of 0, predict as 1
+        return 1
 
-    if c == len(preds):
-        print('case of all preds are uncertain. what to do?')
-        return None
-
-    if a < b:
-        pred = 0
-    else:
-        pred = 1
-    return pred
 
 # Prediction probabilities
 def proba_metamodel(preds):
+    #preds is an array with all the predicted labels from the classifiers belongig to the meta model
     a = preds.count(1)
     b = preds.count(0)
+    c = preds.count(-1)
+    assert a + b +c == len(preds), "Problem in the probabilities for a patient"
     if a+b != 0:
         return a/(a+b)
     else:
-        print('calcul proba a={}, b={}'.format(a,b))
         return -1
 
 
@@ -56,9 +57,9 @@ def get_index_positions(list_of_elems, element):
     return index_pos_list
 
 def unclassified_points(labels, probas):
-    print('probas {}'.format(probas))
+    #print('probas {}'.format(probas))
     un_pts = get_index_positions(probas, -1)
-    print('unclassified_points {}'.format(un_pts))
+    #print('unclassified_points {}'.format(un_pts))
     new_labels = deepcopy(labels)
     new_probas = deepcopy(probas)
     for i in range(len(probas)):
@@ -114,6 +115,7 @@ def auc_score(probas, labels, auc_file=None):
         fpr_array.append([point1[1], point2[1]])
 
     auc3 = sum(np.trapz(tpr_array,fpr_array))+1
+    assert auc3 <= 1 and auc3 >= 0, "AUC score is not in [0,1]"
     print('Area under curve={}'.format(auc3))
 
     CI = confidence_interval(auc3, labels)
@@ -132,11 +134,11 @@ def auc_score(probas, labels, auc_file=None):
 
 
 def confidence_interval(auc, labels):
-    N1 = sum(labels==1)
-    N2 = sum(labels!=1)
+    N1 = labels.count(1)
+    N2 = labels.count(0)
     Q1 = auc/(2-auc)
     Q2 = (2*(auc**2))/(1+auc)
-    SE = sqrt((auc*(1-auc)+(N1-1)*(Q1-auc**2)+(N2-1)*(Q2-auc**2))/(N1*N2))
+    SE = np.sqrt((auc*(1-auc)+(N1-1)*(Q1-auc**2)+(N2-1)*(Q2-auc**2))/(N1*N2))
     low_b = auc - 1.96*SE
     high_b = auc + 1.96*SE
     if low_b < 0:

@@ -13,15 +13,96 @@ import colorsys
 def cr_models(p, df):
     p1, p2, key = p.split('/')
     key = int(key)
-    rev, up = tools.equiv_key_case(key)
+    rev = tools.equiv_key_case(key)
     tr1 = df[p1].values.tolist()
     tr2 = df[p2].values.tolist()
     diag = df['diagnostic'].values.tolist()
     data = [((tr1[n], tr2[n] ), 1, diag[n]) for n in range(len(diag))]
 
-    X, models, r_p, b_p = mru.compute_recursion(data, (rev, up, key))
+    X, models, r_p, b_p = mru.compute_recursion(data, (rev, key))
 
     return p1, p2, models, data
+
+
+def print_severe(data, out, models, p1, p2, df1, pathname ):
+    #print the monotonic space favoring severity
+
+    if '.1.1' in p1:
+        p1 = p1[:-2]
+    if '.1.1' in p2:
+        p2 = p2[:-2]
+
+    try:
+        g1 = df1[df1['Probeset_ID'] == p1]['Gene.Symbol'].values.tolist()[0]
+    except:
+        g1 = 'UNK'
+    try:
+        g2 = df1[df1['Probeset_ID'] == p2]['Gene.Symbol'].values.tolist()[0]
+    except:
+        g2 = 'UNK'
+
+
+    for key in models.keys():
+
+        plt.figure(figsize=(5,5))
+        ax = plt.axes()
+        ax.set_facecolor('lightcoral')
+
+        x_r = list()
+        y_r = list()
+        x_b = list()
+        y_b = list()
+        for i in range(len(data)):
+            xy, w, lab = data[i]
+            x, y = xy
+            if lab == 0: #blue
+                x_r.append(x)
+                y_r.append(y)
+            else: #red
+                x_b.append(x)
+                y_b.append(y)
+
+        bpr, bpb = models[key]
+
+        key = int(key)
+
+        for bp in bpb:
+            x, y = bp
+            if key == 1:
+                ax.add_artist(patches.Rectangle((0.0, 0.0), x, y, facecolor = 'lightskyblue', zorder = 1))
+            elif key == 2:
+                ax.add_artist(patches.Rectangle((x, 0), 1000, y, facecolor = 'lightskyblue', zorder = 1))
+            elif key == 3:
+                ax.add_artist(patches.Rectangle((x, y), 1000, 1000, facecolor = 'lightskyblue', zorder = 1))
+            else:
+                ax.add_artist(patches.Rectangle((0, y ), x, 1000, facecolor = 'lightskyblue', zorder = 1))
+
+
+
+
+        plt.scatter(x_r, y_r, c='blue', zorder = 2, label = 'non severe')
+        plt.scatter(x_b, y_b, c='red', zorder = 2, label = 'severe')
+        if out[2] == 1:
+            color = 'red'
+        else:
+            color = 'blue'
+
+        if out[3] == 1:
+            mark = '*'
+        else:
+            mark = '^'
+        plt.scatter(out[0], out[1], c=color, marker = mark, zorder = 2)
+
+
+        plt.xlabel(g1)
+        plt.ylabel(g2)
+
+        plt.savefig(''.join([pathname, '_',g1, '_', g2]))
+        #plt.show()
+
+
+
+
 
 
 def print_model(data, models, p1, p2, df1, pathname = None):

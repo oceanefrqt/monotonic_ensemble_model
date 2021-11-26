@@ -17,6 +17,11 @@ def err(v, w, z): #error function defined in the paper
 
 next_ = lambda x: int( pow(2, ceil(log(x, 2))))
 
+
+#A is the array containing all the value of the tree
+#X is an array with sorted data
+#H is a soretd list of all column values
+
 def index_leaves(A, k):
     #As we use a balanced binary tree, leaves can be at at most two levels. This function constructs
     #a dictionary linking each leaf index to the index of the corresponding node in the tree
@@ -88,6 +93,8 @@ def compute_Z(A,v):
 
 #These two functions help for updating the tree when Z(g,c_g) is computed (it can change a lot in the path to the root)
 def degenerate_interval(A, v, ind_leaves):
+    #The update in the case h = c_g can lead to a difference between the expected Z value and the one
+    #calculated through the intermediate nodes. We must change the value of intermediate nodes to regulate that.
     p = v //2
     mod = v%2
     while True:
@@ -110,6 +117,8 @@ def add_value(A, p, v, ind_leaves):
 
 
 def rebalance(A,v, ind_leaves):
+    #At each round, at least one of the child nodes of a parent p must be equal to 0. This function
+    #rebalance the tree to verify this condition
     if v != 0:
         p = v//2
         mod = v%2
@@ -131,7 +140,7 @@ def rebalance(A,v, ind_leaves):
 
 
 def step1(ind_cg, A, nb_leaves, ind_leaves, err1, S, H):
-    #t0 = time.process_time()
+    #This step is to update the leave where c_g = h and to update all the tree
     mini = float('inf')
     h = 0
     for i in range(ind_cg, nb_leaves+1):
@@ -152,6 +161,8 @@ def step1(ind_cg, A, nb_leaves, ind_leaves, err1, S, H):
             h = H[ind-1]  #value of the leaves that give minimum Z(g,h)
         else:
             h = H[ind-2]
+    if len(S) ==0:
+        h=H[0]
     S.append(h)
 
 
@@ -161,13 +172,12 @@ def step1(ind_cg, A, nb_leaves, ind_leaves, err1, S, H):
     #if the new value of Z(g,c_g) minus deg is greater or equal to 0, then the value in A for leaf c_g is equal to the difference
     # however, in the other case, it means that we have to change the path to make it correspond
 
-
     if deg <= mini + err1:
         A[ind_leaves[ind_cg]-1] = mini + err1 - deg
     else:
         A[ind_leaves[ind_cg]-1] = mini + err1
         degenerate_interval(A, ind_leaves[ind_cg], ind_leaves)
-    #print('Step1', time.process_time() - t0)
+
 
 
 
@@ -189,6 +199,7 @@ def update_right(v, A, val):
     A[2*v] += val
 
 def update_all_right(v, A, err0):
+    #update all the right nodes or intermediate right nodes of the leaf by going up on the tree
     p = v//2
     while True:
         if v_has_right(p, A) and 2*p+1 !=v:
@@ -216,6 +227,7 @@ def update_left(v, A, val):
 
 
 def update_all_left(v, A, err1):
+    #Update the node that are on the left of the leaf by going up the tree
     p = v//2
     while True:
         if v_has_left(p, A) and 2*p != v:
@@ -228,11 +240,10 @@ def update_all_left(v, A, err1):
 
 
 def step2(A, v, err0, err1):
-    #t0 = time.process_time()
     #add the error in left and right intervals
     update_all_right(v, A, err0)
     update_all_left(v, A, err1)
-    #print('Step2', time.process_time() - t0)
+
 
 
 
@@ -252,6 +263,7 @@ def recursion(A, H, c_g, ind_leaves, err0, err1, nb_leaves, S):
 
 #######TRACEBACK
 def find_h_Z_min(A, ind_leaves):
+    #We search for leaf with minimal Z value, by going down the tree. At each node, we follow the path that as a node value equal to 0
     p = 1
     while True:
         v = 2*p
@@ -273,21 +285,44 @@ def search_key(dico, val):
         return -1
 
 
+def find_highest_point(X, hh):
+    #find the point with highest rows
+    for x in X:
+        if x[0][1] == hh:
+            return x
+
+def find_index_point(X, xy):
+    for x in X:
+        if xy in x:
+            return X.index(x)
+    return None
+
 def traceback(A, X, H, ind_leaves, S):
-    b = search_key(ind_leaves,find_h_Z_min(A, ind_leaves))
+    #By going up in the steps, we can determine the breaking point that construct the regression
+    b = search_key(ind_leaves,find_h_Z_min(A, ind_leaves)) #We look for leaf with minimal Z value as it is the first point
     h = H[b-1]
     breakpoint = list()
     for i in range(len(X)-1, -1, -1):
-        x = X[i] #ie point en partant de la fin
+        x = X[i] #ie point by decreasing order of the sorted array
         xy, w, lab = x
         cg = xy[1] #column
-        if h == cg:
-            h = S[i]
+        if h == cg:#h is a breaking point
+            h = S[i] #we take the h from the previous step
             breakpoint.append(xy)
+
+    if X[0][2] == 1 and X[0][0][1] == H[-2]: #To avoid forgetting the first point if it's the highest in column
+        breakpoint.append(X[0][0])
+
+    hx = find_highest_point(X, H[-2])
+    id_hx = X.index(hx)
+    id_hbp = find_index_point(X, breakpoint[0])
+    if hx[2] == 1 and id_hx < id_hbp:
+        breakpoint.append(hx[0])
+
     return min(A), breakpoint
 
 
-def labels_point(X, bpr, rev, up):
+def labels_point(X, bpr, rev):
     r_p = list()
     b_p = list()
 
@@ -296,7 +331,7 @@ def labels_point(X, bpr, rev, up):
         if x in bpr:
             r_p.append(x)
         else:
-            if not rev and up: #CASE 1
+            if not rev: #CASE DECREASING
                 flag = 0
                 for br in bpr:
                     if x[0] >= br[0] and x[1] >= br[1]:
@@ -306,7 +341,7 @@ def labels_point(X, bpr, rev, up):
                 else:
                     r_p.append(x)
 
-            if rev and up: #CASE 2
+            if rev : #CASE INCREASING
                 flag = 0 #consider as blue by default
                 for br in bpr:
                     if x[0] <= br[0] and x[1] >= br[1]:
@@ -316,25 +351,6 @@ def labels_point(X, bpr, rev, up):
                 else:
                     r_p.append(x)
 
-            if not rev and not up: #CASE 3
-                flag = 0 #consider as blue by default
-                for br in bpr:
-                    if x[0] <= br[0] and x[1] <= br[1]:
-                        flag = 1
-                if flag == 0:
-                    b_p.append(x)
-                else:
-                    r_p.append(x)
-
-            if rev and not up: #CASE 4
-                flag = 0 #consider as blue by default
-                for br in bpr:
-                    if  x[0] >= br[0] and x[1] <= br[1]:
-                        flag =1
-                if flag == 0:
-                    b_p.append(x)
-                else:
-                    r_p.append(x)
     return r_p, b_p
 
 
@@ -345,10 +361,10 @@ def labels_point(X, bpr, rev, up):
 #false positive rather than false negative, we draw the lines closest
 #to "blue" points
 
-def breakpoint_b(X, b_p, rev, up):
+def breakpoint_b(X, b_p, rev):
     bpb = list()
     b_ps = sorted(b_p)
-    if not rev and up: #CASE 1
+    if not rev: #CASE DECREASING
         while len(b_ps) != 0:
             maxi = b_ps[-1]
             x, y = maxi
@@ -357,28 +373,14 @@ def breakpoint_b(X, b_p, rev, up):
             b_ps = sorted(b_ps)
 
 
-    elif rev and up: #CASE 2
+    elif rev : #CASE INCREASING
         while len(b_ps) != 0:
             maxi = b_ps[0]
             x, y = maxi
             bpb.append(maxi)
             b_ps = [pt for pt in b_ps if pt[1] > y]
             b_ps = sorted(b_ps)
-    elif not rev and not up: #CASE 3
-        while len(b_ps) != 0:
-            maxi = b_ps[0]
-            x, y = maxi
-            bpb.append(maxi)
-            b_ps = [pt for pt in b_ps if pt[1] < y]
-            b_ps = sorted(b_ps)
 
-    elif rev and not up: #CASE 4
-        while len(b_ps) != 0:
-            maxi = b_ps[-1]
-            x, y = maxi
-            bpb.append(maxi)
-            b_ps = [pt for pt in b_ps if pt[1] < y]
-            b_ps = sorted(b_ps)
     return bpb
 
 #####MAIN FUNCTION
@@ -414,31 +416,25 @@ def compute_recursion(data, case = None):
 
             error, bpr = traceback(A, X, H, ind_leaves, S)
 
+            r_p, b_p = labels_point(X, bpr, rev)
 
-            for up in [True, False]:
-
-                r_p, b_p = labels_point(X, bpr, rev, up)
-
-                bpb = breakpoint_b(X, b_p, rev, up)
+            bpb = breakpoint_b(X, b_p, rev)
 
 
-                if rev and up:
-                    models[2] = (bpr, bpb)
-                elif not rev and up:
-                    models[1] = (bpr, bpb)
-                elif not rev and not up:
-                    models[3] = (bpr, bpb)
-                else:
-                    models[4] = (bpr, bpb)
+            if rev:
+                models[2] = (bpr, bpb)
+            elif not rev:
+                models[1] = (bpr, bpb)
+
 
     else:
-        #print('case {}'.format(case))
-        rev, up = case[0], case[1]
+
+        rev = case[0]
         X, H, A, ind_leaves = initialization(data, rev)
         S = list()
         labs = [x[2] for x in X]
         nb_leaves = len(H)
-        #print(X)
+
         for i in range(len(X)): #((r,c), w, label)
             x = X[i]
             xy, w, lab = x
@@ -454,109 +450,63 @@ def compute_recursion(data, case = None):
 
         error, bpr = traceback(A, X, H, ind_leaves, S)
 
-        r_p, b_p = labels_point(X, bpr, rev, up)
+        r_p, b_p = labels_point(X, bpr, rev)
 
-        bpb = breakpoint_b(X, b_p, rev, up)
+        bpb = breakpoint_b(X, b_p, rev)
 
-        models[case[2]] = (bpr, bpb)
+        models[case[1]] = (bpr, bpb)
 
     return X, models, r_p, b_p
 
 
 #### PREDICTION For diff case
 
-def predict_uncertainty(p, bpr, bpb, rev, up):
-    flag = -1
-    if not rev and up: #CASE 1
-        for b in bpr:
+def predict_uncertainty(p, bpr, bpb, rev):
+
+    flag = -1 #by default point is uncertain
+    if not rev: #CASE DECREASING
+        for b in bpr: #Check if point is the red area by comparing its position with the one of the red borders
             if p[0] >= b[0] and p[1] >= b[1]:
                 flag = 1
 
-        for b in bpb:
+        for b in bpb: #Check if point is the blue area by comparing its position with the one of the blue borders
             if p[0] <= b[0] and p[1] <= b[1]:
                 flag = 0
 
 
-    elif rev and up: #CASE 2
-        for b in bpr:
+    elif rev: #CASE INCREASING
+        for b in bpr: #Check if point is the red area by comparing its position with the one of the red borders
             if p[0] <= b[0] and p[1] >= b[1]:
                 flag = 1
 
-        for b in bpb:
+        for b in bpb: #Check if point is the blue area by comparing its position with the one of the blue borders
             if p[0] >= b[0] and p[1] <= b[1]:
                 flag = 0
 
-    elif not rev and not up: #CASE 3
-        for b in bpr:
-            if p[0] <= b[0] and p[1] <= b[1]:
-                flag = 1
+    assert flag in [1, 0, -1], "Problem with prediction of the point, label is not 0, 1 or -1"
 
-        for b in bpb:
-            if p[0] >= b[0] and p[1] >= b[1]:
-                flag = 0
-
-
-    elif rev and not up: #CASE 4
-        for b in bpr:
-            if p[0] >= b[0] and p[1] <= b[1]:
-                flag = 1
-
-        for b in bpb:
-            if p[0] <= b[0] and p[1] >= b[1]:
-                flag = 0
     return flag
 
 
 
-def predict_severe(p, bpr, bpb, rev, up):
+def predict_severe(p, bpr, bpb, rev):
     # points in grey area are automatically labelled in red area
-    flag = 1
-    if not rev and up: #CASE 1
-        for b in bpb:
-            if p[0] <= b[0] and p[1] <= b[1]:
-                flag = 0
+    flag = predict_uncertainty(p, bpr, bpb, rev)
+    if flag == -1:
+        flag = 1
+
+    assert flag in [1, 0], "Problem with prediction of the point, label is not 0 or 1"
 
 
-    elif rev and up: #CASE 2
-        for b in bpb:
-            if p[0] >= b[0] and p[1] <= b[1]:
-                flag = 0
-
-    elif not rev and not up: #CASE 3
-        for b in bpb:
-            if p[0] >= b[0] and p[1] >= b[1]:
-                flag = 0
-
-
-    elif rev and not up: #CASE 4
-        for b in bpb:
-            if p[0] <= b[0] and p[1] >= b[1]:
-                flag = 0
     return flag
 
 
-def predict_non_severe(p, bpr, bpb, rev, up):
+def predict_non_severe(p, bpr, bpb, rev):
     # points in grey area are automatically labelled in blue area
-    flag = 0
-    if not rev and up: #CASE 1
-        for b in bpr:
-            if p[0] >= b[0] and p[1] >= b[1]:
-                flag = 1
+    flag = predict_uncertainty(p, bpr, bpb, rev)
+    if flag == -1:
+        flag = 0
 
-
-    elif rev and up: #CASE 2
-        for b in bpr:
-            if p[0] <= b[0] and p[1] >= b[1]:
-                flag = 1
-
-    elif not rev and not up: #CASE 3
-        for b in bpr:
-            if p[0] <= b[0] and p[1] <= b[1]:
-                flag = 1
-
-    elif rev and not up: #CASE 4
-        for b in bpr:
-            if p[0] >= b[0] and p[1] <= b[1]:
-                flag = 1
+    assert flag in [1, 0], "Problem with prediction of the point, label is not 0 or 1"
 
     return flag
