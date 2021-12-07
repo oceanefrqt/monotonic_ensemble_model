@@ -35,15 +35,17 @@ def single_error(p1, p2, df_2, out, funct):
 
     data = [((tr1[n], tr2[n] ), 1, diag[n]) for n in range(len(diag))]
     out_p = (out[p1], out[p2])
-    X, models, r_p, b_p = mru.compute_recursion(data)
+    X, models = mru.compute_recursion(data)
     errors = list() #Store the error prediction in following format ('A/B/k', err)
     #with A and B two transcripts, k the case of the function (decreasing or increasing) and err the error
 
     for key in models.keys():
+        print('key', key)
         key = int(key)
         rev = tools.equiv_key_case(key)
-        bpr, bpb = models[key]
+        bpr, bpb, r_p, b_p = models[key]
         pred = funct(out_p, bpr, bpb, rev)
+        print('pred is done', pred)
 
         if pred == -1:
             errors.append(("".join([p1, '/', p2, '/', str(key)]), -1)) #if uncertain, we keep it like this

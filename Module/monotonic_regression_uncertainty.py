@@ -313,11 +313,12 @@ def traceback(A, X, H, ind_leaves, S):
     if X[0][2] == 1 and X[0][0][1] == H[-2]: #To avoid forgetting the first point if it's the highest in column
         breakpoint.append(X[0][0])
 
-    hx = find_highest_point(X, H[-2])
+    hx = find_highest_point(X, H[-2]) #To avoid forgetting the last point if the highest
     id_hx = X.index(hx)
-    id_hbp = find_index_point(X, breakpoint[0])
-    if hx[2] == 1 and id_hx < id_hbp:
-        breakpoint.append(hx[0])
+    if len(breakpoint)!=0:
+        id_hbp = find_index_point(X, breakpoint[0])
+        if hx[2] == 1 and id_hx < id_hbp:
+            breakpoint.append(hx[0])
 
     return min(A), breakpoint
 
@@ -422,9 +423,9 @@ def compute_recursion(data, case = None):
 
 
             if rev:
-                models[2] = (bpr, bpb)
+                models[2] = (bpr, bpb, r_p, b_p)
             elif not rev:
-                models[1] = (bpr, bpb)
+                models[1] = (bpr, bpb, r_p, b_p)
 
 
     else:
@@ -454,9 +455,9 @@ def compute_recursion(data, case = None):
 
         bpb = breakpoint_b(X, b_p, rev)
 
-        models[case[1]] = (bpr, bpb)
+        models[case[1]] = (bpr, bpb, r_p, b_p)
 
-    return X, models, r_p, b_p
+    return X, models
 
 
 #### PREDICTION For diff case

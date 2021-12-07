@@ -37,8 +37,8 @@ def prediction_pairs(df, out, pair, funct):
     data = [((tr1[n], tr2[n] ), 1, diag[n]) for n in range(len(diag))]
     out_p = (out[p1], out[p2])
 
-    X, models, r_p, b_p = mru.compute_recursion(data, (rev, key))
-    bpr, bpb = models[key]
+    X, models = mru.compute_recursion(data, (rev, key))
+    bpr, bpb, r_p, b_p = models[key]
     pred = funct(out_p, bpr, bpb, rev) #
 
     return pred

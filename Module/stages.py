@@ -36,7 +36,10 @@ def stage_2(df, k_opt, auc_file, nbcpus, funct, strat):
         mve, pairs, algo = oka.find_k_metamodel(df_2, ndf_err, k_opt, nbcpus, strat)
         pred, proba = oka.create_and_predict_metamodel(df_2, out, pairs, nbcpus, funct)
 
-        print(pred)
+        print('Point', out)
+
+        print('pred',pred)
+        print('probas', proba)
 
         preds.append(abs(out['diagnostic']-pred))
         probas.append(proba)

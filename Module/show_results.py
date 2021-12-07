@@ -19,7 +19,7 @@ def cr_models(p, df):
     diag = df['diagnostic'].values.tolist()
     data = [((tr1[n], tr2[n] ), 1, diag[n]) for n in range(len(diag))]
 
-    X, models, r_p, b_p = mru.compute_recursion(data, (rev, key))
+    X, models = mru.compute_recursion(data, (rev, key))
 
     return p1, p2, models, data
 
@@ -62,7 +62,7 @@ def print_severe(data, out, models, p1, p2, df1, pathname ):
                 x_b.append(x)
                 y_b.append(y)
 
-        bpr, bpb = models[key]
+        bpr, bpb, r_p, b_p = models[key]
 
         key = int(key)
 
@@ -142,7 +142,7 @@ def print_model(data, models, p1, p2, df1, pathname = None):
                 x_b.append(x)
                 y_b.append(y)
 
-        bpr, bpb = models[key]
+        bpr, bpb, r_p, b_p = models[key]
 
         for bp in bpb:
             x, y = bp
