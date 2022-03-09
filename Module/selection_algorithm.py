@@ -8,41 +8,28 @@ import time
 
 #Filter the matrix: eliminate redundant transcripts
 
-def filter_matrix_greedy(ndf):
-    cols = ndf.columns.tolist()
-    cols.remove('phenotype')
+def filter_pairs_greedy(pairs):
     used_trans = list()
     delete_col = list()
-    for i in range(len(cols)):
-        trans = cols[i].split("/")
-        p1, p2 = trans[0], trans[1]
+    for i in range(len(pairs)):
+        p1, p2, key = pairs[i].split("/")
         if p1 in used_trans or p2 in used_trans:
-            delete_col.append(cols[i])
+            delete_col.append(pairs[i])
         else:
             used_trans.append(p1)
             used_trans.append(p2)
-    ndf.drop(labels=delete_col, axis = 1, inplace = True)
-    return ndf
+    for x in delete_col:
+        pairs.remove(x)
+    return pairs
 
-def filter_matrix_adapt(ndf, cls):
-    cols = ndf.columns.tolist()
-    cols.remove('phenotype')
-    delete_col = list()
-    for i in range(len(cols)):
-        trans = cols[i].split("/")
-        p1, p2 = trans[0], trans[1]
-        if not cls == cols[i] and (p1 in cls or p2 in cls):
-            delete_col.append(cols[i])
-    ndf.drop(labels=delete_col, axis = 1, inplace = True)
-    return ndf
 
-def filter_pairs_adapt(pairs, cls):
+
+def filter_pairs_adapt(pairs, cl):
     delete_pairs = list()
-    idx = pairs.index(cls)
+    idx = pairs.index(cl)
     for i in range(idx, len(pairs)):
-        trans = pairs[i].split("/")
-        p1, p2 = trans[0], trans[1]
-        if p1 in cls or p2 in cls:
+        p1, p2, key = pairs[i].split("/")
+        if p1 in cl or p2 in cl:
             delete_pairs.append(pairs[i])
     for x in delete_pairs:
         pairs.remove(x)
@@ -53,55 +40,62 @@ def filter_pairs_adapt(pairs, cls):
 
 
 
-def NB(df, ndf_, k, nbcpus, mes = ms.MVE):
+def NB(df, ndf_, cost, k, nbcpus, mes = ms.MVE):
 
     ndf = copy.deepcopy(ndf_)
-    ndf = filter_matrix_greedy(ndf)
-    pairs = ndf.columns.tolist()[1:k+1]
-    set = [ndf[p].values.tolist() for p in pairs]
-    phen = ndf['phenotype']
+    ndf.drop(['uncertain', 'error'], inplace=True)
 
-    return pairs, ms.MVE(set), ndf
+    pairs = sorted(cost.items(), key=lambda t: t[1])
+    pairs = [pairs[i][0] for i in range(len(pairs))]
+    pairs = filter_pairs_greedy(pairs)
+    pairs = pairs[0:k]
+
+    set = [ndf[p].values.tolist() for p in pairs]
+
+    return pairs, ms.MVE(set)
 
 
 ##### Forward search
 
 
-def test_candidate_FS(cand_pairs, set_pairs, ndf, mes, i):
-
+def test_candidate_FS(cand_pairs, cls, ndf, mes, i):
     cp = cand_pairs[i]
 
-    candidate_set_pairs = copy.deepcopy(set_pairs)
+    candidate_set_pairs = [ndf[cl].values.tolist() for cl in cls]
     candidate_set_pairs.append(ndf[cp].values.tolist())
     cp_ms = mes(candidate_set_pairs)
-
 
     return (i, cp, cp_ms)
 
 
 
-def FS(df, ndf_, k, nbcpus, mes = ms.MVE, start = 0):
-    try:
-        nbcpus = int (os.getenv('OMP_NUM_THREADS') )
-    except:
-        pass
+def FS(df, ndf_, cost, k, nbcpus, mes = ms.MVE, jump = 50):
     pool = mp.Pool(nbcpus)
 
     ndf = copy.deepcopy(ndf_)
-    pairs_ = ndf.columns.tolist()[1:]
-    pairs = [pairs_[start]]
-    set_pairs = [ndf[pairs[0]].values.tolist()]
-    phen = ndf['phenotype']
+    ndf.drop(['uncertain', 'error'], inplace=True)
+
+    temp = min(cost.values())
+    res = [key for key in cost.keys() if cost[key] == temp] #Many classifiers can have the lowest error
+    cl = res[0] #We take one arbitrary
+    cls = [cl] #We start with an ensemble of k=1 classifiers
+
+    pairs = sorted(cost.items(), key=lambda t: t[1])
+    pairs = [pairs[i][0] for i in range(len(pairs))]
+
     ind = 1
     tot_ind = ind
 
-    while len(pairs) < k:
+    while len(cls) < k: #We add classifiers until we reach k
+        #Condition if we reach the end of the list of classifiers, we start again from the begining by eliminating the already used cls
+        if tot_ind + jump > len(pairs):
+            pairs = [pairs[p] for p in range(len(pairs)) if pairs[p] not in cls]
+            ind = 1
+            tot_ind = ind
 
-        cand_pairs = pairs_[ind:ind+20]
-        best_cp_ms = len(ndf)
-        best_cand = None
+        cand_pairs = pairs[ind:ind+jump]
 
-        vals = [(cand_pairs, set_pairs, ndf, mes, i) for i in range(len(cand_pairs))]
+        vals = [(cand_pairs, cls, ndf, mes, i) for i in range(len(cand_pairs))]
 
         res = pool.starmap(test_candidate_FS, vals, max(1,len(vals)//nbcpus))
         res.sort(key=lambda x:x[2])
@@ -110,67 +104,58 @@ def FS(df, ndf_, k, nbcpus, mes = ms.MVE, start = 0):
         best_cp_ms = cp_ms
         best_cand = cp
         ind = tot_ind + i +1
-
         tot_ind = ind
 
-        if best_cand != None:
-            pairs.append(best_cand)
-            set_pairs.append(ndf[best_cand].values.tolist())
-            ndf = filter_matrix_adapt(ndf, best_cand)
-            pairs_ = filter_pairs_adapt(pairs_, best_cand)
-        else:
-            print("Adding another classifier doesn't improve the metamodel")
-            break
-    return pairs, ms.MVE(set_pairs), ndf
+
+        cls.append(best_cand)
+
+        pairs = filter_pairs_adapt(pairs, best_cand)
+
+
+    set = [ndf[p].values.tolist() for p in cls]
+
+    return cls, ms.MVE(set)
 
 
 #### Backward Search
 
 
-def test_candidate_BS(cand_pairs, set_pairs, ndf, mes, i):
-    #print('inside BS')
+def test_candidate_BS(cand_pairs, cls, ndf, mes, i):
     cp = cand_pairs[i]
-    candidate_set_pairs = copy.deepcopy(set_pairs)
-    candidate_set_pairs.remove(ndf[cp].values.tolist())
+
+    candidate_set_pairs = [ndf[cl].values.tolist() for cl in cls if cl != cp]
+
     cp_ms = mes(candidate_set_pairs)
-    #print((i, cp, cp_ms))
+
     return (i, cp, cp_ms)
 
 
-def BS(df, ndf_, k, nbcpus, mes = ms.F2, end = 50):
-    try:
-        nbcpus = int (os.getenv('OMP_NUM_THREADS') )
-    except:
-        pass
+def BS(df, ndf_, cost, k, nbcpus, mes = ms.F2, end = 50):
+
     pool = mp.Pool(nbcpus)
-
     ndf = copy.deepcopy(ndf_)
-    pairs_ = ndf.columns.tolist()[1:]
-    pairs = [pairs_[i] for i in range(min(end, len(pairs_)))]
-    set_pairs = [ndf[p].values.tolist() for p in pairs]
-    phen = ndf['phenotype']
+    ndf.drop(['uncertain', 'error'], inplace=True)
 
-    while len(pairs) > k:
 
-        cand_pairs = pairs.copy()
+    pairs = sorted(cost.items(), key=lambda t: t[1])
+    pairs = [pairs[i][0] for i in range(len(pairs))]
+    pairs = filter_pairs_greedy(pairs)
+    cls = pairs[:end]
 
-        best_cand = None
+    while len(cls) > k:
 
-        vals = [(cand_pairs, set_pairs, ndf, mes, i) for i in range(len(cand_pairs))]
+        cand_pairs = cls.copy()
+
+        vals = [(cand_pairs, cls, ndf, mes, i) for i in range(len(cand_pairs))]
 
         res = pool.starmap(test_candidate_BS, vals, max(1,len(vals)//nbcpus))
 
         res.sort(key=lambda x:x[2])
 
         i, cp, cp_ms = res[0]
-        best_cp_ms = cp_ms
+        cls.remove(cp)
 
-        best_cand = cp
 
-        if best_cand != None:
-            pairs.remove(best_cand)
-            set_pairs.remove(ndf[best_cand].values.tolist())
-        else:
-            print("Adding another classifier doesn't improve the metamodel")
-            break
-    return pairs, ms.MVE(set_pairs), ndf
+    set = [ndf[p].values.tolist() for p in cls]
+
+    return cls, ms.MVE(set)

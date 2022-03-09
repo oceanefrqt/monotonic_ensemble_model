@@ -51,16 +51,17 @@ def yi_MV_0(pred_xi):
 
 def MVE(set, meth = yi_MV_1):
     #majority voting error rate
-    M = len(set)
-    N = len(set[0])
+    M = len(set) #Nb of classifiers
+    N = len(set[0]) #Nb of patients
     mve = 0
-    for i in range(N):
+    for i in range(N): #For each patient i
         #construction of pred_xi
         pred_xi = list()
-        for j in range(M):
-            pred_xi.append(set[j][i])
+        for j in range(M):#For each classifier j
+            pred_xi.append(set[j][i]) #We add the misclassification error of patient i for the classifier j
 
-        yi_mv = meth(pred_xi)
+        yi_mv = meth(pred_xi) #Whereas the patient i was misclassified or not according to the ensemble
+
         mve += yi_mv
     return mve/N
 

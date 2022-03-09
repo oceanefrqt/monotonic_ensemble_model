@@ -4,14 +4,14 @@ from copy import deepcopy
 
 
 def equiv_key_case(i):
-    equiv = {1 : False, 2: True}
+    equiv = {1 : (False, True), 2: (True, True), 3:(False, False), 4:(True, False)}
     return equiv[i]
 
 
 
 
 def equiv_case_key(rev):
-    equiv = {False:1, True:2}
+    equiv = {(False, True):1, (True, True):2, (False, False):3, (True, False):4}
     return equiv[rev]
 
 
@@ -30,7 +30,7 @@ def pred_metamodel(preds):
         return 1
 
 
-# Prediction probabilities
+# Prediction probability of being severe
 def proba_metamodel(preds):
     #preds is an array with all the predicted labels from the classifiers belongig to the meta model
     a = preds.count(1)
@@ -99,7 +99,7 @@ def perf_metrics(y_actual, y_hat,threshold):
 
 
 def auc_score(probas, labels, auc_file=None):
-    thresholds = np.arange(0.0, 1.01, 0.01)
+    thresholds = np.arange(0.0, 1.01, 0.001)
 
     roc_points = []
     for threshold in thresholds:
@@ -134,6 +134,7 @@ def auc_score(probas, labels, auc_file=None):
 
 
 def confidence_interval(auc, labels):
+    labels = list(labels)
     N1 = labels.count(1)
     N2 = labels.count(0)
     Q1 = auc/(2-auc)
