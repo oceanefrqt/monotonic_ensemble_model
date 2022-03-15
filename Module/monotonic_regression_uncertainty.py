@@ -293,7 +293,7 @@ def find_index_point(X, xy):
             return X.index(x)
     return None
 
-def traceback(A, X, H, ind_leaves, S):
+def traceback(A, X, H, ind_leaves, S, up):
     #By going up in the steps, we can determine the breaking point that construct the regression
     b = search_key(ind_leaves,find_h_Z_min(A, ind_leaves)) #We look for leaf with minimal Z value as it is the first point
     h = H[b-1]
@@ -306,14 +306,14 @@ def traceback(A, X, H, ind_leaves, S):
             h = S[i] #we take the h from the previous step
             breakpoint.append(xy)
 
-    if X[0][2] == 1 and X[0][0][1] == H[-2]: #To avoid forgetting the first point if it's the highest in column
+    if X[0][2] == int(up) and X[0][0][1] == H[-2]: #To avoid forgetting the first point if it's the highest in column
         breakpoint.append(X[0][0])
 
     hx = find_highest_point(X, H[-2]) #To avoid forgetting the last point if the highest
     id_hx = X.index(hx)
     if len(breakpoint)!=0:
         id_hbp = find_index_point(X, breakpoint[0])
-        if hx[2] == 1 and id_hx < id_hbp:
+        if hx[2] == int(up) and id_hx < id_hbp:
             breakpoint.append(hx[0])
 
     return min(A), breakpoint
@@ -563,16 +563,13 @@ def compute_recursion(data, case = None):
                         rebalance(A,v, ind_leaves)
 
                 if up:
-
-                    error, bpr = traceback(A, X, H, ind_leaves, S)
+                    error, bpr = traceback(A, X, H, ind_leaves, S, up)
                     r_p, b_p = labels_point(X, bpr, rev, up)
 
                     bpb = breakpoint_b(X, b_p, rev, up)
 
-
                 else:
-
-                    error, bpb = traceback(A, X, H, ind_leaves, S)
+                    error, bpb = traceback(A, X, H, ind_leaves, S, up)
 
                     r_p, b_p = labels_point(X, bpb, rev, up)
                     bpr = breakpoint_b(X, r_p, rev, up)
@@ -610,13 +607,13 @@ def compute_recursion(data, case = None):
                 rebalance(A,v, ind_leaves)
 
         if up:
-            error, bpr = traceback(A, X, H, ind_leaves, S)
+            error, bpr = traceback(A, X, H, ind_leaves, S, up)
             r_p, b_p = labels_point(X, bpr, rev, up)
 
             bpb = breakpoint_b(X, b_p, rev, up)
 
         else:
-            error, bpb = traceback(A, X, H, ind_leaves, S)
+            error, bpb = traceback(A, X, H, ind_leaves, S, up)
             r_p, b_p = labels_point(X, bpb, rev, up)
             bpr = breakpoint_b(X, r_p, rev, up)
 
