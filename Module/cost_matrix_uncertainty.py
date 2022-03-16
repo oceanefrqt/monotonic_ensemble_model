@@ -12,6 +12,8 @@ import copy
 
 import multiprocessing as mp
 
+from IPython.display import display
+
 ### Useful functions for parallele
 
 def vals_mp(pairs, df_2, out, funct):
@@ -59,7 +61,7 @@ def error_matrix(df_, pairs, nbcpus, funct):
 
     index = list()
 
-    mat_err = pd.DataFrame(columns = pairs) #Dataframe with possible classifiers as columns
+    mat_err = pd.DataFrame(columns = pairs + ['phenotype']) #Dataframe with possible classifiers as columns
 
     for j in range(len(df)):# For each patient j, we add a line to the dataframe contaning whereas the patient was misclassified or not (1 if misclassified, 0 otherwise)
         out = df.iloc[j, :]
@@ -74,8 +76,9 @@ def error_matrix(df_, pairs, nbcpus, funct):
         dico_err['phenotype'] = out['diagnostic']
         dico_err_s = pd.Series(dico_err)
         dico_err_s.name = 'P'+str(j+1)
-        mat_err = mat_err.append(dico_err_s)
+        mat_err = pd.concat((mat_err, dico_err_s.to_frame().T), axis=0)
         del df_2
+
 
 
 
@@ -84,7 +87,9 @@ def error_matrix(df_, pairs, nbcpus, funct):
     unc_s = pd.Series(unc)
     unc_s.name = 'uncertain'
 
-    mat_err = mat_err.append(unc_s)
+    mat_err = pd.concat((mat_err,unc_s.to_frame().T), axis=0)
+
+
 
     cols = list(mat_err.columns)
     cols.remove('phenotype')
@@ -100,7 +105,7 @@ def error_matrix(df_, pairs, nbcpus, funct):
     err_s = pd.Series(err)
     err_s.name = 'error'
 
-    mat_err = mat_err.append(err_s)
+    mat_err = pd.concat((mat_err,err_s.to_frame().T), axis=0)
 
 
     mat_err.sort_values(axis = 1, by=['error', 'uncertain'], inplace=True)
