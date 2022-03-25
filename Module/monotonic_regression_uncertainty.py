@@ -316,19 +316,28 @@ def traceback(A, X, H, ind_leaves, S, up):
         if hx[2] == int(up) and id_hx < id_hbp:
             breakpoint.append(hx[0])
 
-    return min(A), breakpoint
+    return breakpoint
 
 
 def labels_point(X, bpr, rev, up):
     r_p = list()
     b_p = list()
 
+    reg_err = 0
     for x in X:
+        lab = x[2]
         x = x[0]
+
         if up and x in bpr:
             r_p.append(x)
+            if lab == 0:
+                reg_err +=1
+
         elif not up and x in bpr:
             b_p.append(x)
+            if lab == 1:
+                reg_err +=1
+
         else:
             if not rev and up: #CASE 1
                 flag = 0
@@ -337,8 +346,12 @@ def labels_point(X, bpr, rev, up):
                         flag = 1
                 if flag == 0:
                     b_p.append(x)
+                    if lab == 1:
+                        reg_err +=1
                 else:
                     r_p.append(x)
+                    if lab == 0:
+                        reg_err +=1
 
             if rev and up: #CASE 2
                 flag = 0 #consider as blue by default
@@ -347,8 +360,12 @@ def labels_point(X, bpr, rev, up):
                         flag = 1
                 if flag == 0:
                     b_p.append(x)
+                    if lab == 1:
+                        reg_err +=1
                 else:
                     r_p.append(x)
+                    if lab == 0:
+                        reg_err +=1
 
             if not rev and not up: #CASE 3
                 flag = 1 #consider as red by default
@@ -357,8 +374,12 @@ def labels_point(X, bpr, rev, up):
                         flag = 0
                 if flag == 0:
                     b_p.append(x)
+                    if lab == 1:
+                        reg_err +=1
                 else:
                     r_p.append(x)
+                    if lab == 0:
+                        reg_err +=1
 
             if rev and not up: #CASE 4
                 flag = 1 #consider as red by default
@@ -367,9 +388,15 @@ def labels_point(X, bpr, rev, up):
                         flag =0
                 if flag == 0:
                     b_p.append(x)
+                    if lab == 1:
+                        reg_err +=1
                 else:
                     r_p.append(x)
-    return r_p, b_p
+                    if lab == 0:
+                        reg_err +=1
+
+
+    return r_p, b_p, reg_err
 
 
 
@@ -563,28 +590,28 @@ def compute_recursion(data, case = None):
                         rebalance(A,v, ind_leaves)
 
                 if up:
-                    error, bpr = traceback(A, X, H, ind_leaves, S, up)
-                    r_p, b_p = labels_point(X, bpr, rev, up)
+                    bpr = traceback(A, X, H, ind_leaves, S, up)
+                    r_p, b_p, reg_err = labels_point(X, bpr, rev, up)
 
                     bpb = breakpoint_b(X, b_p, rev, up)
 
                 else:
-                    error, bpb = traceback(A, X, H, ind_leaves, S, up)
+                    bpb = traceback(A, X, H, ind_leaves, S, up)
 
-                    r_p, b_p = labels_point(X, bpb, rev, up)
+                    r_p, b_p, reg_err = labels_point(X, bpb, rev, up)
                     bpr = breakpoint_b(X, r_p, rev, up)
 
                 bpr = clean_red(bpr, rev, up)
                 bpb = clean_blue(bpb, rev, up)
 
                 if rev and up:
-                    models[2] = (bpr, bpb, r_p, b_p)
+                    models[2] = (reg_err, bpr, bpb, r_p, b_p)
                 elif not rev and up:
-                    models[1] = (bpr, bpb, r_p, b_p)
+                    models[1] = (reg_err, bpr, bpb, r_p, b_p)
                 elif not rev and not up:
-                    models[3] = (bpr, bpb, r_p, b_p)
+                    models[3] = (reg_err, bpr, bpb, r_p, b_p)
                 else:
-                    models[4] = (bpr, bpb, r_p, b_p)
+                    models[4] = (reg_err, bpr, bpb, r_p, b_p)
 
     else:
         #print('case {}'.format(case))
@@ -607,20 +634,20 @@ def compute_recursion(data, case = None):
                 rebalance(A,v, ind_leaves)
 
         if up:
-            error, bpr = traceback(A, X, H, ind_leaves, S, up)
-            r_p, b_p = labels_point(X, bpr, rev, up)
+            bpr = traceback(A, X, H, ind_leaves, S, up)
+            r_p, b_p, reg_err = labels_point(X, bpr, rev, up)
 
             bpb = breakpoint_b(X, b_p, rev, up)
 
         else:
-            error, bpb = traceback(A, X, H, ind_leaves, S, up)
-            r_p, b_p = labels_point(X, bpb, rev, up)
+            bpb = traceback(A, X, H, ind_leaves, S, up)
+            r_p, b_p, reg_err = labels_point(X, bpb, rev, up)
             bpr = breakpoint_b(X, r_p, rev, up)
 
         bpr = clean_red(bpr, rev, up)
         bpb = clean_blue(bpb, rev, up)
 
-        models[case[2]] = (bpr, bpb, r_p, b_p)
+        models[case[2]] = (reg_err, bpr, bpb, r_p, b_p)
 
     return X, models
 

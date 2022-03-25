@@ -2,7 +2,7 @@ from Module import cost_matrix_uncertainty as cmu
 from Module import monotonic_regression_uncertainty as mru
 from Module import selection_algorithm as sa
 from Module import tools
-from Module import show_results as sr
+
 
 
 import time
@@ -41,7 +41,7 @@ def prediction_pairs(df, out, pair, funct):
     out_p = (out[p1], out[p2])
 
     X, models = mru.compute_recursion(data, (rev, up, key))
-    bpr, bpb, r_p, b_p = models[key]
+    reg_err, bpr, bpb, r_p, b_p = models[key]
     pred = funct(out_p, bpr, bpb, rev, up) #
     return pred
 

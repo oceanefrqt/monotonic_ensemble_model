@@ -62,7 +62,7 @@ def print_model(data, models, p1, p2, df1, pathname = None):
                 x_b.append(x)
                 y_b.append(y)
 
-        bpr, bpb, r_p, b_p = models[key]
+        reg_err, bpr, bpb, r_p, b_p = models[key]
 
         for bp in bpb:
             x, y = bp
@@ -144,7 +144,7 @@ def print_model_out(data, out, models, p1, p2, df1, pathname = None):
                 x_b.append(x)
                 y_b.append(y)
 
-        bpr, bpb, r_p, b_p = models[key]
+        reg_err, bpr, bpb, r_p, b_p = models[key]
 
         for bp in bpb:
             x, y = bp
@@ -226,7 +226,7 @@ def print_severe(data, models, p1, p2, df1, pathname = None):
                 x_b.append(x)
                 y_b.append(y)
 
-        bpr, bpb, r_p, b_p = models[key]
+        reg_err, bpr, bpb, r_p, b_p = models[key]
 
         for bp in bpb:
             x, y = bp

@@ -3,12 +3,22 @@ from Module import optimal_k_aggregations as oka
 from Module import monotonic_regression_uncertainty as mru
 from Module import tools
 from Module import selection_algorithm as sa
+from Module import preselection as pls
 
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
+
 from sklearn.metrics import roc_auc_score
+
+
+def stage0(df, nbcpus, threshold):
+    reg = psl.regression_error_matrix(df, nbcpus)
+    if threshold is not None:
+        reg = psl.preselection_reg_err(reg, threshold)
+    return reg
+
 
 
 

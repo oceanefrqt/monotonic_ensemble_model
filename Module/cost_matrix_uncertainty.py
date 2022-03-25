@@ -40,7 +40,7 @@ def single_error(p, df_2, out, funct):
     out_p = (out[p1], out[p2])
     X, models = mru.compute_recursion(data, (rev, up, key))
 
-    bpr, bpb, r_p, b_p = models[key]
+    reg_err, bpr, bpb, r_p, b_p = models[key]
     pred = funct(out_p, bpr, bpb, rev, up)
 
     if pred == -1:
