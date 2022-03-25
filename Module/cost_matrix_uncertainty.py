@@ -87,31 +87,32 @@ def error_matrix(df_, pairs, nbcpus, funct):
     unc_s = pd.Series(unc)
     unc_s.name = 'uncertain'
 
-    mat_err = pd.concat((mat_err,unc_s.to_frame().T), axis=0)
+    mat_err_unc = pd.concat((mat_err,unc_s.to_frame().T), axis=0)
 
 
 
-    cols = list(mat_err.columns)
+    cols = list(mat_err_unc.columns)
     cols.remove('phenotype')
     rem = list()
     for col in cols:
-        val = mat_err.at['uncertain', col]
+        val = mat_err_unc.at['uncertain', col]
         if val > len(df)/3:
             rem.append(col)
     mat_err.drop(rem, axis=1, inplace=True)
+    mat_err_unc.drop(rem, axis=1, inplace=True)
 
     err = {col: mat_err[col].to_list().count(1)/(mat_err[col].to_list().count(1) + mat_err[col].to_list().count(0)) for col in pairs if col not in rem}
     err['phenotype'] = np.nan
     err_s = pd.Series(err)
     err_s.name = 'error'
 
-    mat_err = pd.concat((mat_err,err_s.to_frame().T), axis=0)
+    mat_err_final = pd.concat((mat_err_unc,err_s.to_frame().T), axis=0)
 
 
-    mat_err.sort_values(axis = 1, by=['error', 'uncertain'], inplace=True)
+    mat_err_final.sort_values(axis = 1, by=['error', 'uncertain'], inplace=True)
 
     del df
-    return mat_err
+    return mat_err_final
 
 
 
