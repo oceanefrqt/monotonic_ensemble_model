@@ -1,5 +1,5 @@
-from Module import cost_matrix_uncertainty as cmu
-from Module import measures as ms
+from Module_confidence import cost_matrix_uncertainty as cmu
+from Module_confidence import measures as ms
 
 import copy
 import multiprocessing as mp

@@ -1,8 +1,8 @@
-from Module import cost_matrix_uncertainty as cmu
-from Module import optimal_k_aggregations as oka
-from Module import monotonic_regression_uncertainty as mru
-from Module import tools
-from Module import selection_algorithm as sa
+from Module_confidence import cost_matrix_uncertainty as cmu
+from Module_confidence import optimal_k_aggregations as oka
+from Module_confidence import monotonic_regression_uncertainty as mru
+from Module_confidence import tools
+from Module_confidence import selection_algorithm as sa
 
 import multiprocessing as mp
 
@@ -13,7 +13,7 @@ import os
 
 def all_configurations(df):
     transcripts = list(df.columns)
-    transcripts.remove('target')
+    transcripts.remove('diagnostic')
 
     configurations = list()
     for i in range(len(transcripts)):
@@ -28,7 +28,7 @@ def single_score(cl, df):
     key = int(key)
     rev, up = tools.equiv_key_case(key)
 
-    diag = df['target'].to_list()
+    diag = df['diagnostic'].to_list()
     tr1, tr2 = df[p1].to_list(), df[p2].to_list()
     data = [((tr1[i], tr2[i]), 1, diag[i]) for i in range(len(diag))]
 

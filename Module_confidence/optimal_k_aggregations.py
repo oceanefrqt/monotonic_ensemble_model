@@ -1,7 +1,8 @@
-from Module import cost_matrix_uncertainty as cmu
-from Module import monotonic_regression_uncertainty as mru
-from Module import selection_algorithm as sa
-from Module import tools
+from Module_confidence import cost_matrix_uncertainty as cmu
+from Module_confidence import monotonic_regression_uncertainty as mru
+from Module_confidence import selection_algorithm as sa
+from Module_confidence import tools
+from Module_confidence import ranking_jumps as rj
 
 
 
@@ -35,7 +36,7 @@ def prediction_pairs(df, out, pair, funct):
     rev, up = tools.equiv_key_case(key)
 
     tr1, tr2 = df[p1].values.tolist(), df[p2].values.tolist()
-    diag = df['target'].values.tolist()
+    diag = df['diagnostic'].values.tolist()
 
     data = [((tr1[n], tr2[n] ), 1, diag[n]) for n in range(len(diag))]
     out_p = (out[p1], out[p2])
@@ -43,7 +44,11 @@ def prediction_pairs(df, out, pair, funct):
     X, models = mru.compute_recursion(data, (rev, up, key))
     reg_err, bpr, bpb, r_p, b_p = models[key]
     pred = funct(out_p, bpr, bpb, rev, up) #
-    return pred
+
+    jump = rj.jump_borders(out_p, X, bpr, bpb, rev, up)
+
+    sc = rj.score(jump, len(X))
+    return pred, sc
 
 
 def create_and_predict_metamodel(df_, out, pairs, nbcpus, funct):
@@ -53,10 +58,14 @@ def create_and_predict_metamodel(df_, out, pairs, nbcpus, funct):
 
     vals = [(df, out, p, funct) for p in pairs]
 
-    preds = pool.starmap(prediction_pairs, vals, max(1,len(vals)//nbcpus)) #Get all the predictions made by the different pairs for a single patient
+    res = pool.starmap(prediction_pairs, vals, max(1,len(vals)//nbcpus)) #Get all the predictions made by the different pairs for a single patient
 
+    preds = [r[0] for r in res]
+    scores = [r[1] for r in res]
+
+    print('Prediction = {}, Score = {}'.format(tools.pred_metamodel(preds), sum(scores)))
     del df
-    return tools.pred_metamodel(preds), tools.proba_metamodel(preds)
+    return rj.prediction_score(sum(scores)), tools.proba_metamodel(preds)
 
 
 
@@ -100,7 +109,7 @@ def k_missclassification(df, cls, nbcpus, funct, strat, min_k, max_k, log):
 
             pred, proba = create_and_predict_metamodel(df_2, out, pair, nbcpus, funct)
             if proba != -1:
-                k_mis[1].append(abs(out['target']-pred))
+                k_mis[1].append(abs(out['diagnostic']-pred))
             else:  #case of proba = -1 means that all the classifiers in the metamodel predicted the point as uncertain
                 print('case of unknown point in oka')
 
@@ -113,7 +122,7 @@ def k_missclassification(df, cls, nbcpus, funct, strat, min_k, max_k, log):
             pred, proba = create_and_predict_metamodel(df_2, out, pairs, nbcpus, funct)
 
             if proba != -1:
-                k_mis[k].append(abs(out['target']-pred))
+                k_mis[k].append(abs(out['diagnostic']-pred))
             else:  #case of proba = -1 means that all the classifiers in the metamodel predicted the point as uncertain
                 print('case of unknown point in oka')
 

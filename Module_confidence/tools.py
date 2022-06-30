@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
-import seaborn as sn
 
 
 def equiv_key_case(i):
@@ -148,39 +147,3 @@ def confidence_interval(auc, labels):
     if high_b > 1:
         high_b = 1
     return [round(low_b, 3), round(high_b,3)]
-
-
-
-def confusion_matrix(y_real, y_pred, conf_mat_file):
-    tp = 0
-    fp = 0
-    tn = 0
-    fn = 0
-
-    for i in range(len(y_real)):
-        if y_real[i] == 1:
-            if y_pred[i] == 1:
-                tp += 1
-            else:
-                fn += 1
-        elif y_real[i] == 0:
-            if y_pred[i] == 0:
-                tn += 1
-            else:
-                fp += 1
-
-    conf_mat = [[tn, fn], [fp, tp]]
-
-    if conf_mat_file is not None:
-        df_cm = pd.DataFrame(array, range(6), range(6))
-        plt.figure(figsize=(5,5))
-        sn.set(font_scale=1.4)
-        sn.heatmap(df_cm, annot=True, annot_kws={"size": 16})
-        plt.xlabel('True labels')
-        plt.ylabel('Output labels')
-        plt.title('Confusion matrix')
-        plt.legend()
-        plt.savefig(conf_mat_file)
-
-
-    return conf_mat

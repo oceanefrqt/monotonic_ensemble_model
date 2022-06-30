@@ -1,9 +1,9 @@
-from Module import cost_matrix_uncertainty as cmu
-from Module import optimal_k_aggregations as oka
-from Module import monotonic_regression_uncertainty as mru
-from Module import tools
-from Module import selection_algorithm as sa
-from Module import preselection as psl
+from Module_confidence import cost_matrix_uncertainty as cmu
+from Module_confidence import optimal_k_aggregations as oka
+from Module_confidence import monotonic_regression_uncertainty as mru
+from Module_confidence import tools
+from Module_confidence import selection_algorithm as sa
+from Module_confidence import preselection as psl
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -29,8 +29,8 @@ def stage_1(df, cls, min_k, max_k, nbcpus, strat, funct, log):
 
 
 
-def stage_2(df, cls, k_opt, auc_file, conf_mat_file, nbcpus, funct, strat, logs):
-    errors, probas, labels, preds = list(), list(), list(), list()
+def stage_2(df, cls, k_opt, auc_file, nbcpus, funct, strat, logs):
+    errors, probas, labels = list(), list(), list()
 
     for i in range(len(df)):
         out = df.iloc[i, :]
@@ -54,24 +54,22 @@ def stage_2(df, cls, k_opt, auc_file, conf_mat_file, nbcpus, funct, strat, logs)
         f.write('Pred={}, Proba={} \n'.format(pred, proba))
         f.close()
 
-        errors.append(abs(out['target']-pred))
+        errors.append(abs(out['diagnostic']-pred))
         probas.append(proba)
-        labels.append(out['target'])
-        preds.append(pred)
+        labels.append(out['diagnostic'])
 
 
     acc = errors.count(0)/len(errors)
     auc = tools.auc_score(probas, labels, auc_file)
     auc2 = roc_auc_score(labels, probas)
     CI = tools.confidence_interval(auc, labels)
-    conf_mat = tools.confusion_matrix(labels, preds, conf_mat_file)
 
     f = open(logs, 'a')
     f.write('acc={}, auc={}, CI = {} \n'.format(acc, auc, CI))
     f.close()
 
     labels, probas, uncertain_pts = tools.unclassified_points(labels, probas)
-    return acc, auc, CI, conf_mat
+    return acc, auc, CI
 
 def stage_3(df, cls, k_opt, nbcpus, funct, strat):
     ndf_err = cmu.error_matrix(df, cls, nbcpus,funct)
